@@ -1,10 +1,10 @@
-﻿namespace BookSystem.Model
+namespace BookSystem.Model
 {
     public class Member
     {
-        public string UserId { get; set; }
-        public string UserCname { get; set; }
-        public string UserEname { get; set; }
-
+        public int Id { get; set; }
+        public string? UserId { get; set; }
+        public string? UserCname { get; set; }
+        public string? UserEname { get; set; }
     }
 }

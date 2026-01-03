@@ -18,7 +18,39 @@ namespace BookSystem.Model
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                 .Build();
 
-            return config.GetConnectionString("DBConn");
+            // Ensure a non-null string is always returned, or throw a more explicit exception.
+            // For now, we'll return an empty string if not found, to be handled by TestDbConnection.
+            return config.GetConnectionString("DBConn") ?? string.Empty;
+        }
+
+        public string TestDbConnection()
+        {
+            string connectionString = GetDBConnectionString();
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                // This means 'DBConn' was not found in appsettings.json or was empty.
+                return "錯誤：在 appsettings.json 中找不到 'DBConn' 連接字串，或其值為空。請檢查設定。";
+            }
+
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                try
+                {
+                    conn.Open();
+                    return "資料庫連線成功！";
+                }
+                catch (Exception ex)
+                {
+                    return $"資料庫連線失敗：{ex.Message}";
+                }
+                finally
+                {
+                    if (conn.State == System.Data.ConnectionState.Open)
+                    {
+                        conn.Close();
+                    }
+                }
+            }
         }
 
         public List<Book> QueryBook(BookQueryArg arg)
@@ -26,20 +58,32 @@ namespace BookSystem.Model
             var result = new List<Book>();
             using (SqlConnection conn = new SqlConnection(GetDBConnectionString()))
             {
-                //TODO:sql 補齊
                 string sql = @"
                     Select 
 	                    A.BOOK_ID As BookId,A.BOOK_NAME As BookName,
 	                    A.BOOK_CLASS_ID As BookClassId,B.BOOK_CLASS_NAME As BookClassName,
-	                    Convert(VarChar(10),A.BOOK_BOUGHT_DATE,120) As BookBoughtDate
+                        A.BOOK_STATUS As BookStatusId, C.CODE_NAME As BookStatusName,
+                        A.BOOK_KEEPER As BookKeeperId, D.USER_CNAME As BookKeeperCname, D.USER_ENAME As BookKeeperEname,
+	                    Convert(VarChar(10),A.BOOK_BOUGHT_DATE,120) As BookBoughtDate,
+                        A.BOOK_AUTHOR As BookAuthor, A.BOOK_PUBLISHER As BookPublisher, A.BOOK_NOTE As BookNote
                     From BOOK_DATA As A
 	                    Inner Join BOOK_CLASS As B On A.BOOK_CLASS_ID=B.BOOK_CLASS_ID
-	                    Inner Join BOOK_CODE As C On A.BOOK_STATUS=C.CODE_ID
-	                    Where (A.BOOK_ID=@BOOK_ID Or @BOOK_ID=0)";
-                Dictionary<string, Object> parameter = new Dictionary<string, object>();
-                parameter.Add("@BOOK_ID", arg.BookId);
-                parameter.Add("@BOOK_NAME", arg.BookName != null ? "%" + arg.BookName + "%" : string.Empty);
-                result = conn.Query<Book>(sql, parameter).ToList();
+	                    Left Join BOOK_CODE As C On A.BOOK_STATUS=C.CODE_ID And C.CODE_TYPE = 'BOOK_STATUS'
+                        Left Join MEMBER_M As D On A.BOOK_KEEPER = D.USER_ID
+                    Where (A.BOOK_NAME LIKE @BookName Or @BookName = '%%')
+                      And (A.BOOK_CLASS_ID = @BookClassId Or @BookClassId = '')
+                      And (A.BOOK_STATUS = @BookStatusId Or @BookStatusId = '')
+                      And (A.BOOK_KEEPER = @BookKeeperId Or @BookKeeperId = '')";
+
+                var parameters = new
+                {
+                    BookName = "%" + (arg.BookName ?? "") + "%",
+                    BookClassId = arg.BookClassId ?? "",
+                    BookStatusId = arg.BookStatusId ?? "",
+                    BookKeeperId = arg.BookKeeperId ?? ""
+                };
+
+                result = conn.Query<Book>(sql, parameters).ToList();
             }
             return result;
         }
