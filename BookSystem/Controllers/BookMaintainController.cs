@@ -10,6 +10,15 @@ namespace BookSystem.Controllers
     public class BookMaintainController : ControllerBase
     {
         
+        [HttpGet]
+        [Route("testconnection")]
+        public IActionResult TestConnection()
+        {
+            BookService bookService = new BookService();
+            string result = bookService.TestDbConnection();
+            return Ok(result);
+        }
+
         [HttpPost]
         [Route("addbook")]
         public IActionResult AddBook(Book book)
@@ -42,7 +51,7 @@ namespace BookSystem.Controllers
         }
         [HttpPost()]
         [Route("querybook")]
-        public IActionResult QueryBook([FromForm]BookQueryArg arg)
+        public IActionResult QueryBook([FromBody]BookQueryArg arg)
         {
             try
             {
