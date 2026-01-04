@@ -83,8 +83,6 @@ $(function () {
 
         clear(areaOption.query);
         //TODO: 清空後重新查詢
-        var grid = getBooGrid();
-        grid.dataSource.read();
     });
 
     $("#btn-save").click(function (e) {
@@ -112,12 +110,11 @@ $(function () {
                   type: "post",
                   data: function(){
                     return {
-                        "BookName": $("#book_name_q").val(),
-                        // TODO: 補齊傳入參數
-                        // 若為 Kendo DropDownList 則使用其 value()，否則使用原生 val()
-                        "BookClassId": ($("#book_class_q").data("kendoDropDownList") ? $("#book_class_q").data("kendoDropDownList").value() : $("#book_class_q").val()),
-                        "BookKeeperId": ($("#book_keeper_q").data("kendoDropDownList") ? $("#book_keeper_q").data("kendoDropDownList").value() : $("#book_keeper_q").val()),
-                        "BookStatusId": $("#book_status_q").data("kendoDropDownList").value()
+                        "BookName":$("#book_name_q").val(),
+                        //TODO: 補齊傳入參數
+                        "BookClassId":"",
+                        "BookKeeperId":"",
+                        "BookStatusId":$("#book_status_q").data("kendoDropDownList").value()
                     }
                   }
                 }
@@ -165,10 +162,10 @@ $(function () {
             schema: {
                 model: {
                     fields: {
-                        LendDate: { type: "string" },
-                        BookKeeperId: { type: "string" },
-                        BookKeeperEname: { type: "string" },
-                        BookKeeperCname: { type: "string" }
+                        lendDate: { type: "string" },
+                        bookKeeperId: { type: "string" },
+                        bookKeeperEname: { type: "string" },
+                        bookKeeperCname: { type: "string" }
                     }
                 }
             },
@@ -194,9 +191,10 @@ $(function () {
  * 當圖書類別改變時,置換圖片
  */
 function onClassChange() {
-    var selectedValue = "DB";
+    var selectedValue = $("#book_class_d").data("kendoDropDownList") ? 
+        $("#book_class_d").data("kendoDropDownList").value() : "";
 
-    if(selectedValue===""){
+    if(selectedValue==="" || selectedValue==null){
         $("#book_image_d").attr("src", "image/optional.jpg");
     }else{
         $("#book_image_d").attr("src", "image/" + selectedValue + ".jpg");
@@ -374,8 +372,11 @@ function bindBook(bookId){
             //TODO: 補齊要綁的資料
             $("#book_id_d").val(book.bookId);
             $("#book_name_d").val(book.bookName);
-
-            $("#book_status_d").data("kendoDropDownList").value(book.bookStatusId);
+            $("#book_class_d").data("kendoDropDownList").value(book.bookClassId);
+            $("#book_bought_date_d").data("kendoDatePicker").value(new Date(book.bookBoughtDate));
+            $("#book_author_d").val(book.bookAuthor);
+            $("#book_publisher_d").val(book.bookPublisher);
+            $("#book_note_d").val(book.bookNote);
 
             onClassChange();
         },error:function(xhr){
@@ -391,16 +392,24 @@ function showBookLendRecord(e) {
     
     var grid = getBooGrid();
     var row = grid.dataItem(e.target.closest("tr"));
+    var bookId = row.bookId;
+    var bookName = row.bookName;
 
-    //row.bookId
     //TODO: 完成發 AJAX 和處理後續動作
     $.ajax({
-        type: "method",
-        url: "url",
-        data: "data",
-        dataType: "dataType",
+        type: "post",
+        url: apiRootUrl+"bookmaintain/querylendrecord",
+        data: JSON.stringify(bookId),
+        contentType: "application/json",
+        dataType: "json",
         success: function (response) {
-            //$("#book_record_area").data("kendoWindow").title(bookName+"借閱紀錄").open();
+            var recordGrid = $("#book_record_grid").data("kendoGrid");
+            recordGrid.dataSource.data(response.data);
+            
+            $("#book_record_area").data("kendoWindow").title(bookName+"借閱紀錄").open();
+        },
+        error: function(xhr){
+            alert(xhr.responseText);
         }
     });    
 }
@@ -508,7 +517,7 @@ function registerRegularComponent(){
     //TODO: 其他的下拉選單
 
     $("#book_bought_date_d").kendoDatePicker({
-        format: "yyyy-MM-dd",
+        format: "yyyy/MM/dd",
         value: new Date(),
         dateInput: true
     });
